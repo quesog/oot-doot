@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#10231d">
+<title>OOT Doot</title>
+<style>
+:root{color-scheme:dark;--bg:#10231d;--panel:#1a332b;--line:#426451;--gold:#f4ce75;--cream:#fff4dc;--muted:#b9c9b1;--green:#a9d68f}
+*{box-sizing:border-box}body{margin:0;background:radial-gradient(ellipse at 50% -20%,#31503a 0,#10231d 60%);color:var(--cream);font:16px/1.45 system-ui,-apple-system,Segoe UI,sans-serif;min-height:100vh;padding:env(safe-area-inset-top) 16px env(safe-area-inset-bottom)}
+main{max-width:760px;margin:auto;padding:24px 0 36px}header{text-align:center;padding:10px 8px 20px} .crest{font-size:28px;color:var(--gold)}h1{font-family:Georgia,serif;font-weight:600;letter-spacing:.04em;font-size:clamp(30px,8vw,46px);margin:4px 0;color:var(--gold)}header p{color:var(--muted);margin:0}.controls{display:flex;justify-content:center;align-items:center;gap:10px;margin:4px 0 18px;color:var(--muted);font-size:14px}.speed{background:#152a23;color:var(--cream);border:1px solid var(--line);border-radius:10px;padding:8px 10px;font:inherit}
+.group{margin:18px 0 24px}.group h2{font:600 13px/1 system-ui,sans-serif;letter-spacing:.15em;text-transform:uppercase;color:var(--green);margin:0 0 10px}.songs{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px}.song{background:linear-gradient(145deg,#203b30,#172d25);border:1px solid var(--line);border-radius:15px;padding:13px 13px 12px;box-shadow:0 5px 16px #0002}.song.active{border-color:var(--gold);box-shadow:0 0 0 1px #f4ce7560,0 5px 20px #0003}.play{width:100%;background:none;border:0;color:inherit;text-align:left;padding:0;cursor:pointer;touch-action:manipulation}.name{font-weight:650;font-size:16px;display:flex;justify-content:space-between;align-items:center}.icon{color:var(--gold);font-size:18px}.notes{display:flex;gap:5px;flex-wrap:wrap;margin-top:10px}.note{display:inline-grid;place-items:center;width:27px;height:27px;border-radius:50%;background:#0e211b;border:1px solid #55745a;color:#fff1c9;font-size:12px;font-weight:700}.hint{font-size:12px;color:var(--muted);margin:13px 2px 0;text-align:center}.status{height:22px;text-align:center;color:var(--gold);font-size:13px;margin:2px 0 8px}.stop{display:block;margin:0 auto 18px;background:#304a3b;border:1px solid #6f8a67;color:var(--cream);border-radius:999px;padding:9px 20px;font:inherit;font-size:14px;cursor:pointer}.stop:disabled{opacity:.45}button:focus-visible,select:focus-visible{outline:3px solid var(--gold);outline-offset:3px}@media(min-width:620px){.songs{grid-template-columns:repeat(3,minmax(0,1fr))}}@media(max-width:360px){body{padding-left:11px;padding-right:11px}.song{padding:11px}.name{font-size:14px}.note{width:24px;height:24px}}
+</style>
+</head>
+<body><main>
+<header><div class="crest" aria-hidden="true">✦</div><h1>OOT Doot</h1><p>Tap a song to play it aloud</p></header>
+<div class="controls"><label for="tempo">Playback speed</label><select id="tempo" class="speed"><option value="650">Slow</option><option value="500" selected>Normal</option><option value="380">Fast</option></select></div>
+<div id="status" class="status" aria-live="polite">Turn your phone volume up and keep it near the game’s microphone.</div><button class="stop" id="stop" disabled>■ &nbsp; Stop playback</button>
+<div id="list"></div>
+<p class="hint">The melody is played as five distinct notes. Keep the phone speaker close to the game’s microphone.</p>
+</main>
+<script>
+const songs=[
+ {group:'Story songs',items:[
+  ['Zelda’s Lullaby','Y X A Y X A'],['Sun’s Song','A R X A R X'],['Epona’s Song','X Y A X Y A'],['Saria’s Song','R A Y R A Y'],['Song of Time','A L R A L R'],['Song of Storms','L R X L R X']
+ ]},
+ {group:'Warp songs',items:[
+  ['Minuet of the Forest','L X Y A Y A'],['Prelude of Light','X A X A Y X'],['Bolero of Fire','R L R L A R A R'],['Serenade of Water','L R A A Y'],['Nocturne of Shadow','Y A A L Y A R'],['Requiem of Spirit','L R L A R L']
+ ]}
+];
+const list=document.querySelector('#list'),status=document.querySelector('#status'),stopButton=document.querySelector('#stop');
+for(const group of songs){const section=document.createElement('section');section.className='group';section.innerHTML=`<h2>${group.group}</h2><div class="songs"></div>`;const grid=section.querySelector('.songs');for(const [name,sequence] of group.items){const card=document.createElement('article');card.className='song';const btn=document.createElement('button');btn.className='play';btn.type='button';btn.setAttribute('aria-label',`Play ${name}: ${sequence.split(' ').join(', ')}`);btn.innerHTML=`<span class="name">${name}<span class="icon" aria-hidden="true">▶</span></span><span class="notes" aria-hidden="true">${sequence.split(' ').map(n=>`<span class="note">${n}</span>`).join('')}</span>`;btn.addEventListener('click',()=>play(sequence.split(' '),name,card));card.append(btn);grid.append(card)}list.append(section)}
+let audio=null,run=0,timer;const activeOscillators=new Set();const freqs={L:293.66,R:349.23,A:440,Y:493.88,X:587.33};
+function stop(){run++;clearTimeout(timer);for(const osc of activeOscillators){try{osc.stop()}catch(e){}}activeOscillators.clear();document.querySelectorAll('.song.active').forEach(x=>x.classList.remove('active'));stopButton.disabled=true;status.textContent='Playback stopped.'}
+stopButton.addEventListener('click',stop);
+async function play(notes,name,card){stop();const current=run;try{audio ||= new (window.AudioContext||window.webkitAudioContext)();await audio.resume();}catch(e){status.textContent='Audio could not start. Tap the page and try again.';return}const gap=Number(document.querySelector('#tempo').value);card.classList.add('active');stopButton.disabled=false;status.textContent=`Playing ${name}…`;const start=audio.currentTime+.06;notes.forEach((n,i)=>{const t=start+(i*gap/1000),osc=audio.createOscillator(),gain=audio.createGain();osc.type='sine';osc.frequency.value=freqs[n];gain.gain.setValueAtTime(.0001,t);gain.gain.exponentialRampToValueAtTime(.24,t+.025);gain.gain.setValueAtTime(.24,t+gap/1000*.82);gain.gain.exponentialRampToValueAtTime(.0001,t+gap/1000*.97);osc.connect(gain);gain.connect(audio.destination);activeOscillators.add(osc);osc.addEventListener('ended',()=>activeOscillators.delete(osc),{once:true});osc.start(t);osc.stop(t+gap/1000)});timer=setTimeout(()=>{if(run===current){card.classList.remove('active');stopButton.disabled=true;status.textContent=`Finished ${name}.`;run++}},notes.length*gap+80)}
+</script></body></html>
